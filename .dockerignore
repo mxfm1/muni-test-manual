@@ -1,0 +1,16 @@
+.git
+.gitignore
+
+.env
+.env.*
+
+vendor/
+node_modules/
+
+Dockerfile
+docker-compose.yml
+
+storage/logs/*
+
+.env.docker
+/apache-config-routes.md

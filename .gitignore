@@ -4,3 +4,5 @@
 /public/uploads/media/*
 !/public/uploads/media/.gitkeep
 /info/*
+/apache-config-routes.md
+.env.docker

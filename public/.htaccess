@@ -1,0 +1,11 @@
+DirectoryIndex index.php
+
+RewriteEngine On
+
+# Servir directamente archivos y directorios existentes, como assets y uploads.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Enviar las rutas de la aplicación al front controller PHP.
+RewriteRule ^ index.php [QSA,L]
