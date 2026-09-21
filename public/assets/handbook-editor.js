@@ -82,6 +82,7 @@ const moduleSelection = createModuleSelectionState();
 const topicSelection = createTopicSelectionState();
 const formEditors = new WeakMap();
 const readOnlyEditors = [];
+const publicPathPrefix = new URL(import.meta.url).pathname.replace(/\/assets\/[^/]+$/, '');
 let currentModule = null;
 let currentTopic = null;
 
@@ -302,9 +303,37 @@ function parseDocument(value) {
     try {
         const document = JSON.parse(value);
 
-        return document?.type === 'doc' ? document : emptyDocument;
+        if (document?.type !== 'doc') {
+            return emptyDocument;
+        }
+
+        normalizeMediaUrls(document);
+        return document;
     } catch {
         return emptyDocument;
+    }
+}
+
+function normalizeMediaUrl(url) {
+    if (typeof url !== 'string') {
+        return url;
+    }
+
+    const match = url.match(/^\/(?:public\/)?uploads\/media\/(.+)$/);
+    return match ? `${publicPathPrefix}/uploads/media/${match[1]}` : url;
+}
+
+function normalizeMediaUrls(node) {
+    if (!node || typeof node !== 'object') {
+        return;
+    }
+
+    if (node.type === 'image' && node.attrs && typeof node.attrs.src === 'string') {
+        node.attrs.src = normalizeMediaUrl(node.attrs.src);
+    }
+
+    if (Array.isArray(node.content)) {
+        node.content.forEach(normalizeMediaUrls);
     }
 }
 
@@ -583,7 +612,7 @@ document.querySelectorAll('[data-upload-input]').forEach((input) => {
             }
 
             const alt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
-            editor.chain().focus().setImage({ src: payload.url, alt: alt || null }).run();
+            editor.chain().focus().setImage({ src: normalizeMediaUrl(payload.url), alt: alt || null }).run();
         } catch {
             window.alert('No fue posible subir la imagen. Verificá que sea JPEG, PNG o WebP de hasta 5 MB.');
         } finally {

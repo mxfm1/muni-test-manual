@@ -9,6 +9,26 @@ use PHPUnit\Framework\TestCase;
 
 final class TiptapRendererTest extends TestCase
 {
+    private mixed $documentRoot;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? null;
+        $_SERVER['DOCUMENT_ROOT'] = realpath(__DIR__ . '/../../public') ?: '';
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->documentRoot === null) {
+            unset($_SERVER['DOCUMENT_ROOT']);
+        } else {
+            $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
+        }
+
+        parent::tearDown();
+    }
+
     public function testRendersParagraph(): void
     {
         $json = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hola mundo"}]}]}';
@@ -46,6 +66,13 @@ final class TiptapRendererTest extends TestCase
     public function testRendersImage(): void
     {
         $json = '{"type":"doc","content":[{"type":"image","attrs":{"src":"/uploads/media/foto.jpg","alt":"Foto"}}]}';
+
+        self::assertSame('<img src="/uploads/media/foto.jpg" alt="Foto" loading="lazy">', TiptapRenderer::toHtml($json));
+    }
+
+    public function testNormalizesLegacyPublicPrefixInImageUrl(): void
+    {
+        $json = '{"type":"doc","content":[{"type":"image","attrs":{"src":"/public/uploads/media/foto.jpg","alt":"Foto"}}]}';
 
         self::assertSame('<img src="/uploads/media/foto.jpg" alt="Foto" loading="lazy">', TiptapRenderer::toHtml($json));
     }

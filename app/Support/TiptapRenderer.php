@@ -91,7 +91,8 @@ final readonly class TiptapRenderer
     private static function renderImage(array $node): string
     {
         $attrs = $node['attrs'] ?? [];
-        $src = is_string($attrs['src'] ?? null) ? htmlspecialchars($attrs['src'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '';
+        $rawSrc = is_string($attrs['src'] ?? null) ? self::normalizeMediaUrl($attrs['src']) : '';
+        $src = htmlspecialchars($rawSrc, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $alt = is_string($attrs['alt'] ?? null) ? htmlspecialchars($attrs['alt'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '';
 
         if ($src === '') {
@@ -101,6 +102,15 @@ final readonly class TiptapRenderer
         return $alt === ''
             ? '<img src="' . $src . '" alt="" loading="lazy">'
             : '<img src="' . $src . '" alt="' . $alt . '" loading="lazy">';
+    }
+
+    private static function normalizeMediaUrl(string $src): string
+    {
+        if (preg_match('#^/(?:public/)?uploads/media/(.+)$#', $src, $matches) !== 1) {
+            return $src;
+        }
+
+        return PublicPath::for('uploads/media') . '/' . $matches[1];
     }
 
     private static function renderText(array $node): string
