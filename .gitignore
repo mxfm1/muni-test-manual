@@ -1,0 +1,6 @@
+/.env
+/vendor/
+/.phpunit.cache/
+/public/uploads/media/*
+!/public/uploads/media/.gitkeep
+/info/*

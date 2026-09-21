@@ -1,0 +1,214 @@
+:root {
+    --home-blue: #006194;
+    --home-blue-dark: #004b73;
+    --home-blue-pale: #e5eeff;
+    --home-ink: #0b1c30;
+    --home-muted: #565e74;
+    --home-outline: #bfc7d2;
+    --home-canvas: #f8f9ff;
+    --home-panel: #ffffff;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    min-height: 100%;
+    margin: 0;
+}
+
+body.home {
+    min-width: 320px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--home-canvas);
+    color: var(--home-ink);
+    font-family: Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.home-main {
+    width: min(100% - 2rem, 64rem);
+    margin: auto;
+    padding: 4rem 0;
+}
+
+.home-intro {
+    max-width: 42rem;
+    margin-bottom: 2.5rem;
+}
+
+.home-eyebrow,
+.destination-label {
+    color: var(--home-blue);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.home-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: 1rem;
+}
+
+.home-eyebrow-mark {
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: var(--home-blue);
+}
+
+.home-intro h1 {
+    margin: 0 0 .75rem;
+    color: var(--home-ink);
+    font-size: clamp(2.25rem, 6vw, 4rem);
+    letter-spacing: -.04em;
+    line-height: 1.05;
+}
+
+.home-intro p {
+    max-width: 36rem;
+    margin: 0;
+    color: var(--home-muted);
+    font-size: 1.05rem;
+    line-height: 1.65;
+}
+
+.home-destinations {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.destination-card {
+    position: relative;
+    display: flex;
+    min-height: 15rem;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    overflow: hidden;
+    border: 1px solid var(--home-outline);
+    border-radius: .75rem;
+    background: var(--home-panel);
+    box-shadow: 0 1px 2px rgb(11 28 48 / 5%);
+    color: var(--home-ink);
+    text-decoration: none;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.destination-card::after {
+    position: absolute;
+    right: -2.5rem;
+    bottom: -3.5rem;
+    width: 9rem;
+    height: 9rem;
+    border-radius: 50%;
+    background: var(--home-blue-pale);
+    content: '';
+    opacity: .7;
+}
+
+.destination-card:hover {
+    border-color: var(--home-blue);
+    box-shadow: 0 12px 28px rgb(11 28 48 / 12%);
+    transform: translateY(-3px);
+}
+
+.destination-card:focus-visible {
+    outline: 3px solid rgb(0 97 148 / 25%);
+    outline-offset: 3px;
+}
+
+.destination-card-primary {
+    border-color: var(--home-blue);
+    background: var(--home-blue);
+    color: #fff;
+}
+
+.destination-card-primary::after {
+    background: rgb(255 255 255 / 12%);
+}
+
+.destination-icon {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border-radius: .5rem;
+    background: var(--home-blue-pale);
+    color: var(--home-blue);
+}
+
+.destination-card-primary .destination-icon {
+    background: rgb(255 255 255 / 15%);
+    color: #fff;
+}
+
+.destination-icon svg {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+
+.destination-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: .45rem;
+}
+
+.destination-card-primary .destination-label {
+    color: #bae6fd;
+}
+
+.destination-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.destination-description {
+    max-width: 22rem;
+    color: var(--home-muted);
+    font-size: .9rem;
+    line-height: 1.55;
+}
+
+.destination-card-primary .destination-description {
+    color: #dbeafe;
+}
+
+.destination-arrow {
+    position: relative;
+    z-index: 1;
+    align-self: flex-end;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.home-footer {
+    padding: 1.5rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    color: var(--home-muted);
+    font-size: .75rem;
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    .home-main {
+        padding: 3rem 0;
+    }
+
+    .home-destinations {
+        grid-template-columns: 1fr;
+    }
+}
