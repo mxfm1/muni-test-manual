@@ -1,7 +1,6 @@
 <?php
 
 use ManualMuni\Support\TiptapDocument;
-use ManualMuni\Support\TiptapRenderer;
 
 /** @var \ManualMuni\Models\HandbookModule $module */
 /** @var \ManualMuni\Models\Topic|null $topic */
@@ -258,7 +257,7 @@ function tvSnippet(?string $text, int $max = 90): string
                         </div>
                     <?php else: ?>
                         <?php foreach ($sections as $sectionIndex => $section): ?>
-                            <?php $sectionHtml = $section->content !== null && $section->content !== '' ? TiptapRenderer::toHtml($section->content) : ''; ?>
+                            <?php $sectionHtml = $section->content !== null && $section->content !== '' ? $renderer->toHtml($section->content) : ''; ?>
                             <section class="tv-card tv-section" id="section-<?= $section->id ?>" data-section-card data-section-id="<?= $section->id ?>">
                                 <div class="tv-section-head">
                                     <span class="tv-section-number"><?= sprintf('%02d', $sectionIndex + 1) ?></span>

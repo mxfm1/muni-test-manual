@@ -2,21 +2,25 @@
 
 declare(strict_types=1);
 
-namespace ManualMuni\Services;
+namespace ManualMuni\Infrastructure\Storage;
 
+use Aws\S3\Exception\S3Exception;
+use Aws\S3\S3Client;
 use Intervention\Image\ImageManager;
 use ManualMuni\Models\Media;
+use ManualMuni\Services\ImageStorage;
 use ManualMuni\Support\NormalizedImageEncoder;
 use ManualMuni\Support\StoredImage;
 
-final readonly class LocalImageStorage implements ImageStorage
+final readonly class R2ImageStorage implements ImageStorage
 {
     private const MAX_SIZE_IN_BYTES = 5_242_880;
     private const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
     public function __construct(
-        private string $directory,
-        private string $publicBasePath,
+        private S3Client $client,
+        private string $bucket,
+        private string $publicBaseUrl,
         private ImageManager $imageManager = new ImageManager(new \Intervention\Image\Drivers\Gd\Driver()),
     ) {
     }
@@ -31,22 +35,23 @@ final readonly class LocalImageStorage implements ImageStorage
             throw new \InvalidArgumentException('Sólo se permiten imágenes JPEG, PNG o WebP.');
         }
 
-$this->ensureDirectoryExists();
-
-        $id = bin2hex(random_bytes(16));
         $normalizedImage = $this->imageManager->read($temporaryPath)->scaleDown(width: 1920, height: 1920);
         $encoded = NormalizedImageEncoder::encode($normalizedImage);
-        $storageKey = $id . '.' . $encoded->extension;
+        $storageKey = 'media/' . bin2hex(random_bytes(16)) . '.' . $encoded->extension;
 
-        if (file_put_contents($this->directory . '/' . $storageKey, $encoded->bytes, LOCK_EX) === false) {
-            throw new \RuntimeException('No fue posible guardar la imagen localmente.');
-        }
+        $this->client->putObject([
+            'Bucket' => $this->bucket,
+            'Key' => $storageKey,
+            'Body' => $encoded->bytes,
+            'ContentType' => $encoded->mimeType,
+            'CacheControl' => 'public, max-age=31536000, immutable',
+        ]);
 
         return new Media(
             null,
             $sectionId,
-            'media/' . $storageKey,
-            $this->publicUrl('media/' . $storageKey),
+            $storageKey,
+            $this->publicUrl($storageKey),
             $filename,
             $encoded->mimeType,
             strlen($encoded->bytes),
@@ -58,38 +63,35 @@ $this->ensureDirectoryExists();
 
     public function delete(Media $media): void
     {
-        $path = $this->directory . '/' . basename($media->storageKey);
-
-        if (is_file($path) && !unlink($path)) {
-            throw new \RuntimeException('No fue posible eliminar la imagen local.');
-        }
+        $this->client->deleteObject([
+            'Bucket' => $this->bucket,
+            'Key' => $media->storageKey,
+        ]);
     }
 
     public function read(string $storageKey): ?StoredImage
     {
-        $path = $this->directory . '/' . basename($storageKey);
+        try {
+            $result = $this->client->getObject([
+                'Bucket' => $this->bucket,
+                'Key' => $storageKey,
+            ]);
+        } catch (S3Exception $exception) {
+            if ($exception->getStatusCode() === 404) {
+                return null;
+            }
 
-        if (!is_file($path)) {
-            return null;
+            throw $exception;
         }
 
-        $mimeType = (new \finfo(FILEINFO_MIME_TYPE))->file($path);
-        $bytes = file_get_contents($path);
-
-        return $mimeType === false || $bytes === false
-            ? null
-            : new StoredImage($mimeType, $bytes);
+        return new StoredImage(
+            (string) ($result['ContentType'] ?? 'application/octet-stream'),
+            (string) $result['Body']->getContents(),
+        );
     }
 
     public function publicUrl(string $storageKey): string
     {
-        return rtrim($this->publicBasePath, '/') . '/' . ltrim($storageKey, '/');
-    }
-
-    private function ensureDirectoryExists(): void
-    {
-        if (!is_dir($this->directory) && !mkdir($this->directory, 0775, true) && !is_dir($this->directory)) {
-            throw new \RuntimeException('No fue posible crear el directorio de imágenes.');
-        }
+        return rtrim($this->publicBaseUrl, '/') . '/' . ltrim($storageKey, '/');
     }
 }

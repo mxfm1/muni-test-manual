@@ -13,7 +13,7 @@ final readonly class MediaRepository
     {
     }
 
-    public function save(Media $media): void
+    public function save(Media $media): int
     {
         $statement = $this->connection->prepare(
             'INSERT INTO media (section_id, storage_key, url, filename, mime_type, size_bytes, width, height, alt_text)
@@ -30,6 +30,21 @@ final readonly class MediaRepository
             $media->height,
             $media->altText,
         ]);
+
+        return (int) $this->connection->lastInsertId();
+    }
+
+    public function findById(int $mediaId): ?Media
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id, section_id, storage_key, url, filename, mime_type, size_bytes, width, height, alt_text, created_at
+             FROM media
+             WHERE id = ?',
+        );
+        $statement->execute([$mediaId]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : self::map($row);
     }
 
     /** @return list<Media> */
@@ -45,22 +60,7 @@ final readonly class MediaRepository
         );
         $statement->execute([$moduleId]);
 
-        return array_map(
-            static fn (array $row): Media => new Media(
-                (int) $row['id'],
-                (int) $row['section_id'],
-                $row['storage_key'],
-                $row['url'],
-                $row['filename'],
-                $row['mime_type'],
-                $row['size_bytes'] === null ? null : (int) $row['size_bytes'],
-                $row['width'] === null ? null : (int) $row['width'],
-                $row['height'] === null ? null : (int) $row['height'],
-                $row['alt_text'],
-                new \DateTimeImmutable($row['created_at']),
-            ),
-            $statement->fetchAll(),
-        );
+        return array_map(self::map(...), $statement->fetchAll());
     }
 
     /** @return list<Media> */
@@ -73,22 +73,7 @@ final readonly class MediaRepository
         );
         $statement->execute([$sectionId]);
 
-        return array_map(
-            static fn (array $row): Media => new Media(
-                (int) $row['id'],
-                (int) $row['section_id'],
-                $row['storage_key'],
-                $row['url'],
-                $row['filename'],
-                $row['mime_type'],
-                $row['size_bytes'] === null ? null : (int) $row['size_bytes'],
-                $row['width'] === null ? null : (int) $row['width'],
-                $row['height'] === null ? null : (int) $row['height'],
-                $row['alt_text'],
-                new \DateTimeImmutable($row['created_at']),
-            ),
-            $statement->fetchAll(),
-        );
+        return array_map(self::map(...), $statement->fetchAll());
     }
 
     /** @return list<Media> */
@@ -103,21 +88,23 @@ final readonly class MediaRepository
         );
         $statement->execute([$topicId]);
 
-        return array_map(
-            static fn (array $row): Media => new Media(
-                (int) $row['id'],
-                (int) $row['section_id'],
-                $row['storage_key'],
-                $row['url'],
-                $row['filename'],
-                $row['mime_type'],
-                $row['size_bytes'] === null ? null : (int) $row['size_bytes'],
-                $row['width'] === null ? null : (int) $row['width'],
-                $row['height'] === null ? null : (int) $row['height'],
-                $row['alt_text'],
-                new \DateTimeImmutable($row['created_at']),
-            ),
-            $statement->fetchAll(),
+        return array_map(self::map(...), $statement->fetchAll());
+    }
+
+    private static function map(array $row): Media
+    {
+        return new Media(
+            (int) $row['id'],
+            (int) $row['section_id'],
+            $row['storage_key'],
+            $row['url'],
+            $row['filename'],
+            $row['mime_type'],
+            $row['size_bytes'] === null ? null : (int) $row['size_bytes'],
+            $row['width'] === null ? null : (int) $row['width'],
+            $row['height'] === null ? null : (int) $row['height'],
+            $row['alt_text'],
+            new \DateTimeImmutable($row['created_at']),
         );
     }
 }

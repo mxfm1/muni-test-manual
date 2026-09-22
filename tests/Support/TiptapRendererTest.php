@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ManualMuni\Tests\Support;
 
 use ManualMuni\Support\TiptapRenderer;
+use ManualMuni\Services\ImageUrlResolver;
 use PHPUnit\Framework\TestCase;
 
 final class TiptapRendererTest extends TestCase
@@ -33,14 +34,14 @@ final class TiptapRendererTest extends TestCase
     {
         $json = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hola mundo"}]}]}';
 
-        self::assertSame('<p>Hola mundo</p>', TiptapRenderer::toHtml($json));
+        self::assertSame('<p>Hola mundo</p>', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testRendersHeadingWithLevel(): void
     {
         $json = '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Título"}]}]}';
 
-        self::assertSame('<h2>Título</h2>', TiptapRenderer::toHtml($json));
+        self::assertSame('<h2>Título</h2>', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testRendersLists(): void
@@ -49,7 +50,7 @@ final class TiptapRendererTest extends TestCase
 
         self::assertSame(
             '<ul><li><p>Uno</p></li></ul><ol start="3"><li><p>Tres</p></li></ol>',
-            TiptapRenderer::toHtml($json),
+            (new TiptapRenderer())->toHtml($json),
         );
     }
 
@@ -59,7 +60,7 @@ final class TiptapRendererTest extends TestCase
 
         self::assertSame(
             '<p><strong>negrita</strong><em>cursiva</em><a href="https://mun.cl" target="_blank" rel="noopener noreferrer">enlace</a></p>',
-            TiptapRenderer::toHtml($json),
+            (new TiptapRenderer())->toHtml($json),
         );
     }
 
@@ -67,53 +68,69 @@ final class TiptapRendererTest extends TestCase
     {
         $json = '{"type":"doc","content":[{"type":"image","attrs":{"src":"/uploads/media/foto.jpg","alt":"Foto"}}]}';
 
-        self::assertSame('<img src="/uploads/media/foto.jpg" alt="Foto" loading="lazy">', TiptapRenderer::toHtml($json));
+        self::assertSame('<img src="/uploads/media/foto.jpg" alt="Foto" loading="lazy">', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testNormalizesLegacyPublicPrefixInImageUrl(): void
     {
         $json = '{"type":"doc","content":[{"type":"image","attrs":{"src":"/public/uploads/media/foto.jpg","alt":"Foto"}}]}';
 
-        self::assertSame('<img src="/uploads/media/foto.jpg" alt="Foto" loading="lazy">', TiptapRenderer::toHtml($json));
+        self::assertSame('<img src="/uploads/media/foto.jpg" alt="Foto" loading="lazy">', (new TiptapRenderer())->toHtml($json));
+    }
+
+    public function testResolvesImageByAssetId(): void
+    {
+        $resolver = new class implements ImageUrlResolver {
+            public function resolve(int $assetId): ?string
+            {
+                return $assetId === 42 ? 'https://media.example.com/media/foto.webp' : null;
+            }
+        };
+        $json = '{"type":"doc","content":[{"type":"image","attrs":{"assetId":42,"src":"/uploads/media/legacy.webp","alt":"Foto"}}]}';
+
+        self::assertSame(
+            '<img src="https://media.example.com/media/foto.webp" alt="Foto" loading="lazy">',
+            (new TiptapRenderer($resolver))->toHtml($json),
+        );
     }
 
     public function testRendersCodeBlockAndHorizontalRule(): void
     {
         $json = '{"type":"doc","content":[{"type":"codeBlock","content":[{"type":"text","text":"SELECT 1"}]},{"type":"horizontalRule"}]}';
 
-        self::assertSame('<pre><code>SELECT 1</code></pre><hr>', TiptapRenderer::toHtml($json));
+        self::assertSame('<pre><code>SELECT 1</code></pre><hr>', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testEscapesUserContent(): void
     {
         $json = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"<script>alert(1)</script>"}]}]}';
 
-        self::assertSame('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>', TiptapRenderer::toHtml($json));
+        self::assertSame('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testEscapesImageAttrs(): void
     {
         $json = '{"type":"doc","content":[{"type":"image","attrs":{"src":"x\" onerror=\"alert(1)","alt":"a&b"}}]}';
 
-        self::assertSame('<img src="x&quot; onerror=&quot;alert(1)" alt="a&amp;b" loading="lazy">', TiptapRenderer::toHtml($json));
+        self::assertSame('<img src="x&quot; onerror=&quot;alert(1)" alt="a&amp;b" loading="lazy">', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testInvalidJsonFallsBackToPlainParagraph(): void
     {
-        self::assertSame('<p>&quot;no es json&quot;</p>', TiptapRenderer::toHtml('"no es json"'));
+        self::assertSame('<p>&quot;no es json&quot;</p>', (new TiptapRenderer())->toHtml('"no es json"'));
     }
 
     public function testUnknownNodeFallsBackToItsText(): void
     {
         $json = '{"type":"doc","content":[{"type":"misterioso","content":[{"type":"text","text":"caido"}]}]}';
 
-        self::assertSame('caido', TiptapRenderer::toHtml($json));
+        self::assertSame('caido', (new TiptapRenderer())->toHtml($json));
     }
 
     public function testTextStyleFontFamily(): void
     {
         $json = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"textStyle","attrs":{"fontFamily":"Arial"}}],"text":"fuente"}]}]}';
 
-        self::assertSame('<p><span style="font-family:Arial">fuente</span></p>', TiptapRenderer::toHtml($json));
+        self::assertSame('<p><span style="font-family:Arial">fuente</span></p>', (new TiptapRenderer())->toHtml($json));
     }
 }

@@ -128,6 +128,7 @@
                                 <button type="button" data-editor-image aria-label="Insertar imagen" title="Insertar imagen"><span class="material-symbols-outlined" aria-hidden="true">image</span></button>
                                 <input type="file" accept="image/jpeg,image/png,image/webp" data-upload-input hidden>
                             </div>
+                            <p class="media-upload-feedback" data-media-upload-feedback role="alert" hidden></p>
                             <div class="inline-link-input" data-inline-link hidden>
                                 <input type="text" data-inline-link-url placeholder="Pegá o escribí la URL..." aria-label="URL del enlace" autocomplete="off">
                             </div>

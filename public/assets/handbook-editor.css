@@ -985,6 +985,16 @@ input:focus-visible {
     background: #ffdad6;
 }
 
+.media-upload-feedback {
+    margin: .75rem 0 0;
+    border-radius: .5rem;
+    padding: .65rem .75rem;
+    color: #93000a;
+    background: #ffdad6;
+    font-size: .875rem;
+    line-height: 1.45;
+}
+
 .editor-empty-copy {
     max-width: 40rem;
     text-align: center;
