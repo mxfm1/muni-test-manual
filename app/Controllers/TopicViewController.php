@@ -37,6 +37,7 @@ final readonly class TopicViewController
         $sections = [];
         $nextTopic = null;
         $assetBaseUrl = PublicPath::for('assets');
+        $renderer = $this->renderer;
 
         require __DIR__ . '/../Views/Handbook/topic-view.php';
         exit;
@@ -66,6 +67,7 @@ final readonly class TopicViewController
         }
 
         $assetBaseUrl = PublicPath::for('assets');
+        $renderer = $this->renderer;
 
         require __DIR__ . '/../Views/Handbook/topic-view.php';
         exit;

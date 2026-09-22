@@ -7,6 +7,7 @@ use ManualMuni\Support\TiptapDocument;
 /** @var list<\ManualMuni\Models\Topic> $topics */
 /** @var list<\ManualMuni\Models\Section> $sections */
 /** @var \ManualMuni\Models\Topic|null $nextTopic */
+/** @var \ManualMuni\Support\TiptapRenderer $renderer */
 /** @var string $assetBaseUrl */
 
 $moduleUrl = '/handbook/' . $module->id;
