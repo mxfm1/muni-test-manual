@@ -8,11 +8,13 @@ RUN apt-get update \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
     libpng-dev \
+    libwebp-dev \
     libzip-dev \
     unzip \
     && docker-php-ext-configure gd \
     --with-freetype \
     --with-jpeg \
+    --with-webp \
     && docker-php-ext-install \
     pdo \
     pdo_mysql \
@@ -30,6 +32,10 @@ COPY . .
 RUN composer install \
     --no-dev \
     --optimize-autoloader
+
+# PHP/Apache corre como www-data y necesita escribir las imágenes subidas.
+RUN mkdir -p /var/www/html/public/uploads/media \
+    && chown -R www-data:www-data /var/www/html/public/uploads
 
 # Apache
 # Apache

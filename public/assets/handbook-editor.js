@@ -3,6 +3,7 @@ import { createModuleSelectionState, createTopicSelectionState } from './handboo
 let Editor;
 let Link;
 let Image;
+let ImageWithAsset;
 let TextStyle;
 let FontFamily;
 let StarterKit;
@@ -17,6 +18,20 @@ const tiptapReady = Promise.all([
     Editor = core.Editor;
     Link = link.default;
     Image = image.default;
+    ImageWithAsset = Image.extend({
+        addAttributes() {
+            return {
+                ...this.parent?.(),
+                assetId: {
+                    default: null,
+                    parseHTML: (element) => element.getAttribute('data-asset-id'),
+                    renderHTML: (attributes) => attributes.assetId
+                        ? { 'data-asset-id': attributes.assetId }
+                        : {},
+                },
+            };
+        },
+    });
     TextStyle = textStyle.default;
     FontFamily = fontFamily.default;
     StarterKit = starterKit.default;
@@ -33,7 +48,7 @@ function buildExtensions() {
             linkOnPaste: true,
             HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
         }),
-        Image,
+        ImageWithAsset,
         TextStyle,
         FontFamily,
     ];
@@ -592,12 +607,17 @@ document.querySelectorAll('[data-upload-input]').forEach((input) => {
         }
 
         const imageButton = form.querySelector('[data-editor-image]');
+        const uploadFeedback = form.querySelector('[data-media-upload-feedback]');
         const body = new FormData();
         body.append('image', file);
         body.append('csrf_token', csrfToken);
 
         imageButton?.classList.add('is-loading');
         imageButton?.setAttribute('disabled', '');
+        if (uploadFeedback) {
+            uploadFeedback.hidden = true;
+            uploadFeedback.textContent = '';
+        }
 
         try {
             const response = await fetch(`/sections/${sectionId}/media`, {
@@ -605,16 +625,38 @@ document.querySelectorAll('[data-upload-input]').forEach((input) => {
                 headers: { Accept: 'application/json' },
                 body,
             });
-            const payload = await response.json();
+            const payload = await response.json().catch(() => ({}));
 
             if (!response.ok || payload.ok !== true) {
-                throw new Error('La subida de la imagen falló.');
+                const error = new Error('La subida de la imagen falló.');
+                error.code = payload.error ?? 'storage-unavailable';
+                throw error;
+            }
+
+            if (!Number.isInteger(payload.assetId) || !payload.url) {
+                const error = new Error('La respuesta de subida es inválida.');
+                error.code = 'storage-unavailable';
+                throw error;
             }
 
             const alt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
-            editor.chain().focus().setImage({ src: normalizeMediaUrl(payload.url), alt: alt || null }).run();
-        } catch {
-            window.alert('No fue posible subir la imagen. Verificá que sea JPEG, PNG o WebP de hasta 5 MB.');
+            editor.chain().focus().setImage({
+                src: normalizeMediaUrl(payload.url),
+                assetId: payload.assetId,
+                alt: alt || null,
+            }).run();
+        } catch (error) {
+            const messages = {
+                'invalid-size': 'La imagen no puede superar los 5 MB.',
+                'invalid-mime': 'Sólo se permiten imágenes JPEG, PNG o WebP.',
+                'invalid-image': 'El archivo no contiene una imagen válida.',
+                'storage-unavailable': 'No se pudo guardar la imagen. Intentá nuevamente.',
+                'database-error': 'No se pudo registrar la imagen. Intentá nuevamente.',
+            };
+            if (uploadFeedback) {
+                uploadFeedback.textContent = messages[error?.code] ?? messages['storage-unavailable'];
+                uploadFeedback.hidden = false;
+            }
         } finally {
             imageButton?.classList.remove('is-loading');
             imageButton?.removeAttribute('disabled');

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ManualMuni\Support;
 
+use ManualMuni\Services\ImageUrlResolver;
+
 /**
  * Renderiza documentos JSON generados por Tiptap (StarterKit + Link + Image +
  * TextStyle + FontFamily) a HTML semántico, para vistas públicas donde el
@@ -12,7 +14,11 @@ namespace ManualMuni\Support;
  */
 final readonly class TiptapRenderer
 {
-    public static function toHtml(string $json): string
+    public function __construct(private ?ImageUrlResolver $imageUrlResolver = null)
+    {
+    }
+
+    public function toHtml(string $json): string
     {
         try {
             $document = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -28,10 +34,10 @@ final readonly class TiptapRenderer
                 : '<p>' . self::escape($text) . '</p>';
         }
 
-        return self::renderChildren($document);
+        return $this->renderChildren($document);
     }
 
-    private static function renderChildren(array $parent): string
+    private function renderChildren(array $parent): string
     {
         $html = '';
 
@@ -39,59 +45,63 @@ final readonly class TiptapRenderer
             if (!is_array($child)) {
                 continue;
             }
-            $html .= self::renderNode($child);
+            $html .= $this->renderNode($child);
         }
 
         return $html;
     }
 
-    private static function renderNode(array $node): string
+    private function renderNode(array $node): string
     {
         $type = $node['type'] ?? '';
 
         return match ($type) {
-            'paragraph' => '<p>' . self::renderChildren($node) . '</p>',
-            'heading' => self::renderHeading($node),
-            'bulletList' => '<ul>' . self::renderChildren($node) . '</ul>',
-            'orderedList' => self::renderOrderedList($node),
-            'listItem' => '<li>' . self::renderChildren($node) . '</li>',
-            'blockquote' => '<blockquote>' . self::renderChildren($node) . '</blockquote>',
-            'codeBlock' => self::renderCodeBlock($node),
+            'paragraph' => '<p>' . $this->renderChildren($node) . '</p>',
+            'heading' => $this->renderHeading($node),
+            'bulletList' => '<ul>' . $this->renderChildren($node) . '</ul>',
+            'orderedList' => $this->renderOrderedList($node),
+            'listItem' => '<li>' . $this->renderChildren($node) . '</li>',
+            'blockquote' => '<blockquote>' . $this->renderChildren($node) . '</blockquote>',
+            'codeBlock' => $this->renderCodeBlock($node),
             'horizontalRule' => '<hr>',
             'hardBreak' => '<br>',
-            'image' => self::renderImage($node),
-            'text' => self::renderText($node),
-            default => self::renderChildren($node),
+            'image' => $this->renderImage($node),
+            'text' => $this->renderText($node),
+            default => $this->renderChildren($node),
         };
     }
 
-    private static function renderHeading(array $node): string
+    private function renderHeading(array $node): string
     {
         $level = (int) ($node['attrs']['level'] ?? 2);
         $level = min(max($level, 1), 6);
 
-        return '<h' . $level . '>' . self::renderChildren($node) . '</h' . $level . '>';
+        return '<h' . $level . '>' . $this->renderChildren($node) . '</h' . $level . '>';
     }
 
-    private static function renderOrderedList(array $node): string
+    private function renderOrderedList(array $node): string
     {
         $start = (int) ($node['attrs']['start'] ?? 1);
         $startAttr = $start > 1 ? ' start="' . $start . '"' : '';
 
-        return '<ol' . $startAttr . '>' . self::renderChildren($node) . '</ol>';
+        return '<ol' . $startAttr . '>' . $this->renderChildren($node) . '</ol>';
     }
 
-    private static function renderCodeBlock(array $node): string
+    private function renderCodeBlock(array $node): string
     {
-        $text = self::renderChildren($node);
+        $text = $this->renderChildren($node);
 
         return '<pre><code>' . $text . '</code></pre>';
     }
 
-    private static function renderImage(array $node): string
+    private function renderImage(array $node): string
     {
         $attrs = $node['attrs'] ?? [];
-        $rawSrc = is_string($attrs['src'] ?? null) ? self::normalizeMediaUrl($attrs['src']) : '';
+        $assetId = filter_var($attrs['assetId'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $resolvedSrc = $assetId !== false && $this->imageUrlResolver !== null
+            ? $this->imageUrlResolver->resolve($assetId)
+            : null;
+        $rawSrc = $resolvedSrc ?? (is_string($attrs['src'] ?? null) ? self::normalizeMediaUrl($attrs['src']) : '');
         $src = htmlspecialchars($rawSrc, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $alt = is_string($attrs['alt'] ?? null) ? htmlspecialchars($attrs['alt'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '';
 
@@ -113,7 +123,7 @@ final readonly class TiptapRenderer
         return PublicPath::for('uploads/media') . '/' . $matches[1];
     }
 
-    private static function renderText(array $node): string
+    private function renderText(array $node): string
     {
         $text = isset($node['text']) ? (string) $node['text'] : '';
         $escaped = self::escape($text);

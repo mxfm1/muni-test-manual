@@ -15,7 +15,43 @@ Demo PHP de un manual para una aplicación de gestión con arquitectura MVC. Los
 3. Ejecutar `php database/migrate.php` para aplicar las migraciones pendientes en orden.
 4. Usar `public/` como document root del servidor web.
 
+También se pueden ejecutar las migraciones mediante Composer:
+
+```bash
+composer db:migrate
+```
+
+Para generar una nueva migración SQL numerada:
+
+```bash
+composer db:generate -- add_new_column_to_topics
+```
+
+El comando crea el siguiente archivo disponible en `database/Migration/`:
+`NNN_add_new_column_to_topics.sql`. Después de completar el SQL, ejecutar
+`composer db:migrate` para aplicarlo.
+
 Para desarrollo local, se puede ejecutar `php -S localhost:8000 -t public`.
+
+### Almacenamiento de imágenes
+
+Por defecto, las imágenes se almacenan localmente con `MEDIA_STORAGE=local`. Para usar
+Cloudflare R2, definir `MEDIA_STORAGE=r2` y completar `R2_ACCOUNT_ID`,
+`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_ENDPOINT` y
+`R2_PUBLIC_BASE_URL`. El backend valida el archivo, lo normaliza y guarda en
+WebP cuando la extensión GD lo soporta (si no, JPEG) y persiste en
+MySQL únicamente la referencia y metadata del objeto en la tabla `media`.
+
+Para migrar archivos locales existentes después de configurar R2, ejecutar
+`php database/migrate_media_to_r2.php`. El comando sube los objetos, actualiza sus
+referencias en `media` y reemplaza las imágenes legacy de Tiptap por su `assetId`.
+
+Cuando `R2_PUBLIC_BASE_URL` apunta al propio servidor (por ejemplo
+`http://localhost:8080` durante desarrollo), las imágenes se sirven a través de la
+ruta `GET /media/{storageKey}`, que actúa de proxy sobre R2. En producción se
+recomienda usar un custom domain de Cloudflare sobre el bucket y colocar esa URL en
+`R2_PUBLIC_BASE_URL`: así el navegador consume los objetos directo del edge y la
+ruta proxy ya no se utiliza.
 
 ## Estructura MVC
 

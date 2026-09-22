@@ -12,6 +12,9 @@ use ManualMuni\Support\CsrfTokenManager;
 
 final readonly class MediaController
 {
+    private const MAX_IMAGE_SIZE_IN_BYTES = 5_242_880;
+    private const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
     public function __construct(
         private ImageStorage $storage,
         private MediaRepository $mediaRepository,
@@ -47,30 +50,70 @@ final readonly class MediaController
             $this->respond($wantsJson, '/handbook/edit?media=error', 400, ['ok' => false, 'error' => 'mime-detect-failed']);
         }
 
+        $actualSize = filesize($temporaryPath);
+        if ($actualSize === false || $actualSize === 0) {
+            $this->respond($wantsJson, '/handbook/edit?media=error', 400, ['ok' => false, 'error' => 'upload-error']);
+        }
+
+        if ($actualSize > self::MAX_IMAGE_SIZE_IN_BYTES) {
+            $this->respond($wantsJson, '/handbook/edit?media=invalid', 422, ['ok' => false, 'error' => 'invalid-size']);
+        }
+
+        if (!in_array($mimeType, self::ALLOWED_MIME_TYPES, true)) {
+            $this->respond($wantsJson, '/handbook/edit?media=invalid', 422, ['ok' => false, 'error' => 'invalid-mime']);
+        }
+
         try {
             $media = $this->storage->store(
                 $sectionId,
                 $temporaryPath,
                 basename((string) ($file['name'] ?? 'image')),
                 $mimeType,
-                (int) ($file['size'] ?? 0),
+                $actualSize,
             );
-            $this->mediaRepository->save($media);
         } catch (\InvalidArgumentException) {
             $this->respond($wantsJson, '/handbook/edit?media=invalid', 422, ['ok' => false, 'error' => 'invalid-image']);
-        } catch (\Throwable) {
-            if (isset($media)) {
-                try {
-                    $this->storage->delete($media);
-                } catch (\Throwable) {
-                    // Keep the original failure as the response outcome.
-                }
-            }
+        } catch (\Throwable $exception) {
+            error_log(sprintf(
+                'Media storage failed for section %d: %s: %s',
+                $sectionId,
+                $exception::class,
+                $exception->getMessage(),
+            ));
 
-            $this->respond($wantsJson, '/handbook/edit?media=error', 500, ['ok' => false, 'error' => 'storage-failed']);
+            $this->respond($wantsJson, '/handbook/edit?media=error', 500, ['ok' => false, 'error' => 'storage-unavailable']);
         }
 
-        $this->respond($wantsJson, '/handbook/edit?media=success', 201, ['ok' => true, 'url' => $media->url]);
+        try {
+            $assetId = $this->mediaRepository->save($media);
+        } catch (\Throwable $exception) {
+            error_log(sprintf(
+                'Media database failed for section %d and storage key %s: %s: %s',
+                $sectionId,
+                $media->storageKey,
+                $exception::class,
+                $exception->getMessage(),
+            ));
+
+            try {
+                $this->storage->delete($media);
+            } catch (\Throwable $deleteException) {
+                error_log(sprintf(
+                    'Media rollback delete failed for storage key %s: %s: %s',
+                    $media->storageKey,
+                    $deleteException::class,
+                    $deleteException->getMessage(),
+                ));
+            }
+
+            $this->respond($wantsJson, '/handbook/edit?media=error', 500, ['ok' => false, 'error' => 'database-error']);
+        }
+
+        $this->respond($wantsJson, '/handbook/edit?media=success', 201, [
+            'ok' => true,
+            'assetId' => $assetId,
+            'url' => $media->url,
+        ]);
     }
 
     private function respond(bool $wantsJson, string $redirectUrl, int $jsonStatus, array $jsonBody): never

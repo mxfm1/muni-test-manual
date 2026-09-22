@@ -8,6 +8,7 @@ use ManualMuni\Models\Repositories\ModuleRepository;
 use ManualMuni\Models\Repositories\SectionRepository;
 use ManualMuni\Models\Repositories\TopicRepository;
 use ManualMuni\Support\PublicPath;
+use ManualMuni\Support\TiptapRenderer;
 
 final readonly class TopicViewController
 {
@@ -15,6 +16,7 @@ final readonly class TopicViewController
         private ModuleRepository $moduleRepository,
         private TopicRepository $topicRepository,
         private SectionRepository $sectionRepository,
+        private TiptapRenderer $renderer,
     ) {
     }
 
